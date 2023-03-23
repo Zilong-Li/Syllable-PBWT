@@ -9,7 +9,7 @@ using namespace std;
 char *feed_ch;
 char *fifo_query;
 string fifo_feedback;
-string ffs, wd;
+string sff, wd;
 
 void send(string msg) {
 	cout << "Waiting on server" << endl;
@@ -45,7 +45,7 @@ void send(string msg) {
 		if (feed[0] == '\n') {
 			cout << feed << endl;
 			string line; getline(cin, line);
-			string query = ffs + " " + wd + " " + line;
+			string query = sff + " " + wd + " " + line;
 			sz = query.length();
 			if (write(fdq, (char*) &sz, sizeof(sz)) != (int) sizeof(sz)) {
 				cout << "Unsuccessful write to server" << endl;
@@ -90,11 +90,11 @@ int main(int argc, char **argv) {
 		fqs = wd + string(fifo_query);
 		fifo_query = &fqs[0];
 	}
-	ffs = wd + string(fifo_feedback);
-	fifo_feedback = &ffs[0];
+	sff = wd + string(fifo_feedback);
+	fifo_feedback = &sff[0];
 
 	if (argc == 2) {
-		send(ffs);
+		send(sff);
 	} else {
 		ifstream query_list(argv[2]);
 		if (query_list.fail()) {
@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
 		string line;
 		while (getline(query_list, line)) {
 			cout << '\n' << line << endl;
-			send(ffs + " " + wd + " " + line);
+			send(sff + " " + wd + " " + line);
 		}
 	}
 
