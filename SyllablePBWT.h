@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iostream>
 #include <numeric>
+#include <random>
 #include <sstream>
 #include <unistd.h>
 #include <unordered_map>
@@ -21,6 +22,7 @@ using IntMapU = unordered_map<int, int>;
 template<typename T, typename = typename std::enable_if<std::is_unsigned<T>::value>::type>
 class SyllablePBWT
 {
+  public:
     static const unsigned long long MOD{-1ull - 58}, BASE{(1ull << 48) - 59};
     const int B{sizeof(T) * 8};
     int M{0}, N{0}, n{0};
@@ -33,6 +35,7 @@ class SyllablePBWT
     vector<unsigned long long> hz;
     vector<int> z, up_end, dn_end;
 
+  public:
     int build(std::string vcfpanel, std::string samples, std::string region)
     {
         vcfpp::BcfReader vcf(vcfpanel, samples, region);
@@ -128,7 +131,7 @@ class SyllablePBWT
         return 0;
     }
 
-    int save(const char * save_file)
+    int save(std::string save_file)
     {
         ofstream out(save_file, ios::binary);
         if(out.fail()) return 1;
@@ -162,7 +165,7 @@ class SyllablePBWT
         return 0;
     }
 
-    int load(const char * load_file)
+    int load(std::string load_file)
     {
         ifstream in(load_file, ios::binary);
         if(in.fail()) return 1;
@@ -212,23 +215,61 @@ class SyllablePBWT
         return 0;
     }
 
-    vector<T> encode_zg(const vector<int> & iz)
+    vector<int> randhapz()
+    {
+        std::random_device rd; // Will be used to obtain a seed for the random number engine
+        std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
+        std::uniform_int_distribution<> dist(0, 101);
+        vector<int> rz(N);
+        for(int i = 0; i < N; i++) rz[i] = dist(gen) > 95;
+        return rz;
+    }
+
+    vector<T> encode_zg(const vector<int> & rz)
     {
         vector<T> zg(n);
         for(int K = 0; K < N; K++)
         {
             int k = K / B;
-            zg[k] = (zg[k] << 1) | (iz[K] != 0);
+            zg[k] = (zg[k] << 1) | (rz[K] != 0);
         }
         zg[n - 1] <= n * B - N;
         return zg;
     }
 
-    int query(const vector<T> & zg, const int L, IntMapU & haplens, IntMapU & hapends);
+    void query(std::string vcfquery,
+               std::string samples,
+               std::string region,
+               int L,
+               IntMapU & haplens,
+               IntMapU & hapends)
+    {
+        vcfpp::BcfReader vcf(vcfquery, samples, region);
+        vcfpp::BcfRecord var(vcf.header);
+        vector<bool> gt;
+        int Q = vcf.nsamples * 2;
+        vector<vector<T>> Z(Q, vector<T>(n));
+        for(int K = 0; K < N; K++)
+        {
+            vcf.getNextVariant(var);
+            var.getGenotypes(gt);
+            if(!var.isNoneMissing() || !var.allPhased())
+                throw runtime_error("there is a site with non-phased or missing value!\n");
+            int k = K / B;
+            for(int i = 0; i < Q; i++) Z[i][k] = (Z[i][k] << 1) | (gt[i] != 0);
+        }
+        for(int i = 0; i < Q; i++) Z[i][n - 1] <= n * B - N; // pad last syllable with 0s
+        {
+            query_zg(Z[1], L, haplens, hapends);
+        }
+    }
+
+    int query_zg(const vector<T> & zg, int L, IntMapU & haplens, IntMapU & hapends)
     { // 1-length sites
-        if(L < minSiteL) return 4;
+        if(L < minSiteL) L = minSiteL + 1;
 
         const int l = (L - B + 1) / B; // min # syllables that must be covered by an L-site match
+        cout << l << "\n";
 
         for(int k = 0; k < n; k++)
         {

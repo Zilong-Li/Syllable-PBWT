@@ -1,17 +1,20 @@
-
 HTSINC   = /usr/local/include
 HTSLIB   = /usr/local/lib
-INC      =  -I$(HTSINC) -I$(HTSLIB)
+CXX      = g++
+# CXXFLAGS = -std=c++17 -Wall -O3 -g -fsanitize=address
+CXXFLAGS = -std=c++17 -Wall -O3 -g
+INC      =  -I$(HTSINC)
 LDFLAGS  =  -L$(HTSLIB) -Wl,-rpath,$(HTSLIB)
 LIBS     = -lhts -lz -lm -lbz2 -llzma -lcurl -lpthread
-
-all: main
-
-main: server.cpp client.cpp SyllableQuery.cpp SyllableQuery.h
-	g++ -std=c++17 -Wshadow -Wall -o server server.cpp -O2 -Wno-unused-result ${INC} $(LIBS) $(LDFLAGS)
-	g++ -std=c++17 -Wshadow -Wall -o client client.cpp -O2 -Wno-unused-result ${INC} $(LIBS) $(LDFLAGS)
-
-clean:
-	rm -f server client
+# OBJS     = $(patsubst %.cpp, %.o, $(wildcard *.cpp))
+BINS     = $(patsubst %.cpp, %, $(wildcard *.cpp))
 
 .PHONY: all clean
+
+all: $(BINS)
+
+%: %.cpp
+	${CXX} ${CXXFLAGS} -o $@ $< ${INC} $(LIBS) $(LDFLAGS)
+
+clean:
+	rm -f $(BINS)
